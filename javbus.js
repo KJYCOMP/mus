@@ -1,17 +1,14 @@
 /**
- * JavBus 本地 Spider - 代理强化版
- * 结合 Worker 的图片代理能力，确保海报 100% 显示
+ * JavBus 本地 Spider - 代理强化终极版
  */
 
-// --- 配置区 ---
-var workerUrl = "https://hak.486253sg.eu.org"; // 填入你刚才测试通过的 Worker 域名
+var workerUrl = "https://hak.486253sg.eu.org"; 
 var siteUrl = "https://kt.guykjy.useruno.com";
 
 function init(ext) {
     console.log("JavBus Spider Initialized");
 }
 
-// 1. 首页与筛选配置
 function home(filter) {
     var classes = [{"type_id": "anc", "type_name": "🏠 本地·代理增强版"}];
     var filters = {
@@ -30,23 +27,28 @@ function home(filter) {
     return JSON.stringify({ "class": classes, "filters": filters });
 }
 
-// 2. 一级分类/筛选 (核心：通过 Worker 代理图片)
 function category(tid, pg, filter, extend) {
     var fValue = (extend && extend.f) ? extend.f : "28";
     var page = pg || 1;
     var url = siteUrl + "/api/movies?filterType=genre&filterValue=" + fValue + "&page=" + page + "&magnet=all";
     
-    var response = http.get(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    var json = JSON.parse(response);
+    // 【修正点】：增加超时设置和更完整的 Header
+    var response = http.get(url, { 
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+        timeout: 5000 
+    });
     
+    var json = JSON.parse(response);
     var videos = [];
+    
     if (json && json.movies) {
         json.movies.forEach(function(it) {
+            // 【修正点】：确保图片地址被正确编码拼接
+            var proxyImg = workerUrl + "/proxy-img/" + encodeURIComponent(it.img);
             videos.push({
                 "vod_id": it.id,
                 "vod_name": "[" + it.id + "] " + it.title,
-                // --- 核心修复：借用 Worker 的代理路径处理图片 ---
-                "vod_pic": workerUrl + "/proxy-img/" + encodeURIComponent(it.img),
+                "vod_pic": proxyImg,
                 "vod_remarks": it.date || ""
             });
         });
@@ -61,7 +63,6 @@ function category(tid, pg, filter, extend) {
     });
 }
 
-// 3. 详情页 (获取磁力)
 function detail(id) {
     var url = siteUrl + "/api/movies/" + id;
     var response = http.get(url, { headers: { "User-Agent": "Mozilla/5.0" } });
@@ -74,14 +75,12 @@ function detail(id) {
         "type_name": "JavBus",
         "vod_content": it.description || it.title,
         "vod_play_from": "高清磁力",
-        // 注意：这里也需要借用 Worker 的 /play 逻辑来跳转磁力
         "vod_play_url": "立即播放$" + workerUrl + "/play?id=" + it.id
     };
     
     return JSON.stringify({ "list": [vod] });
 }
 
-// 4. 搜索
 function search(wd, quick) {
     var url = siteUrl + "/api/movies/search?keyword=" + encodeURIComponent(wd) + "&page=1&magnet=all";
     var response = http.get(url, { headers: { "User-Agent": "Mozilla/5.0" } });
